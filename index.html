@@ -42,7 +42,8 @@
     .day-number-box { flex: 1; display: flex; justify-content: center; align-items: center; }
     .day-number { font-size: clamp(5.5rem, 28vw, 8rem); font-weight: bold; color: var(--rood); line-height: 0.85; font-family: "Times New Roman", Georgia, serif; }
     
-    .poem-title-row { text-align: center; padding: 4px 14px; font-size: 0.7rem; font-variant: small-caps; letter-spacing: 0.03em; color: #333; border-top: 1px solid #ddd; border-bottom: 1.5px solid var(--donker); }
+    .poem-title-row { text-align: center; padding: 4px 14px; font-size: 0.7rem; font-variant: small-caps; letter-spacing: 0.03em; color: #333; border-top: 1px solid #ddd; }
+    .verse-line { text-align: center; padding: 8px 14px; font-size: 0.78rem; font-style: italic; line-height: 1.4; color: var(--donker); border-bottom: 1.5px solid var(--donker); font-family: Georgia, serif; }
     
     .day-name-box { text-align: center; padding: 8px 14px 4px; }
     .day-name { font-size: 1.3rem; font-variant: small-caps; letter-spacing: 0.18em; font-weight: bold; }
@@ -119,6 +120,7 @@
         </div>
         <div class="day-number-box"><span class="day-number" id="dayNumber">1</span></div>
         <div class="poem-title-row" id="poemTitle">Herinnering aan Holland</div>
+        <div class="verse-line" id="verseLine">"Denkend aan Holland zie ik breede rivieren"</div>
         <div class="day-name-box"><span class="day-name" id="dayName">MAANDAG</span></div>
         <div class="poet-info">
           <div class="name" id="poetName">H. Marsman</div>
@@ -631,6 +633,7 @@ function ui(){
   document.getElementById('dayOfYear').textContent=doy(dt);
   document.getElementById('dayNumber').textContent=dt.getDate();
   document.getElementById('poemTitle').textContent=p.g;
+  document.getElementById('verseLine').textContent='"'+p.r+'"';
   document.getElementById('dayName').textContent=DN[dt.getDay()];
   document.getElementById('poetName').textContent=p.d;
   document.getElementById('poetDetails').textContent=p.g+' ('+p.j+')';
