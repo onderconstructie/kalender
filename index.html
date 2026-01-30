@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#C41E3A">
+  <title>De Pruimelaar - Scheurkalender</title>
+  <style>
+    :root { --rood: #C41E3A; --donker: #1a1a1a; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; margin: 0; padding: 0; }
+    html, body { overflow-x: hidden; font-family: Georgia, "Times New Roman", serif; background: #fff; }
+    body { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 16px 12px; }
+    
+    .header { text-align: center; margin-bottom: 14px; }
+    .header h1 { font-size: 1.5rem; font-weight: normal; font-variant: small-caps; letter-spacing: 0.25em; color: var(--donker); display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .header .subtitle { font-size: 0.68rem; color: #666; margin-top: 4px; font-style: italic; }
+    
+    .icon { width: 18px; height: 18px; stroke: var(--rood); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .icon-sm { width: 14px; height: 14px; }
+    .icon-xs { width: 12px; height: 12px; }
+    
+    .calendar-container { position: relative; perspective: 1200px; width: 100%; max-width: 320px; }
+    .nail { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); width: 20px; height: 20px; background: radial-gradient(circle at 30% 30%, #555, #111); border-radius: 50%; box-shadow: 2px 3px 4px rgba(0,0,0,0.4); z-index: 100; }
+    
+    .page-wrapper { width: 100%; aspect-ratio: 0.7; cursor: pointer; transform-style: preserve-3d; transition: transform 0.5s ease-in-out, opacity 0.3s; }
+    .page-wrapper.flipped { transform: rotateY(180deg); }
+    .page-wrapper.tearing { opacity: 0.4; transform: translateY(-20px) rotate(-3deg); }
+    
+    .page { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; background: #fff; border: 1px solid #ccc; box-shadow: 0 2px 12px rgba(0,0,0,0.12); display: flex; flex-direction: column; }
+    .page.back { transform: rotateY(180deg); padding: 28px 16px 12px; }
+    .hole { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #fff; border-radius: 50%; border: 1px solid #aaa; z-index: 10; }
+    
+    .month-header { display: flex; justify-content: space-between; align-items: center; padding: 22px 14px 8px; border-bottom: 1.5px solid var(--donker); }
+    .month-header .left { display: flex; align-items: center; gap: 8px; }
+    .month-header .month-name { font-size: 1.15rem; font-variant: small-caps; letter-spacing: 0.12em; font-weight: bold; }
+    
+    .week-info { display: flex; justify-content: space-between; padding: 5px 14px; font-size: 0.65rem; color: #444; border-bottom: 1px solid #ddd; }
+    .week-info .middle { font-style: italic; color: var(--rood); }
+    
+    .day-number-box { flex: 1; display: flex; justify-content: center; align-items: center; }
+    .day-number { font-size: clamp(5.5rem, 28vw, 8rem); font-weight: bold; color: var(--rood); line-height: 0.85; font-family: "Times New Roman", Georgia, serif; }
+    
+    .poem-title-row { text-align: center; padding: 4px 14px; font-size: 0.7rem; font-variant: small-caps; letter-spacing: 0.03em; color: #333; border-top: 1px solid #ddd; border-bottom: 1.5px solid var(--donker); }
+    
+    .day-name-box { text-align: center; padding: 8px 14px 4px; }
+    .day-name { font-size: 1.3rem; font-variant: small-caps; letter-spacing: 0.18em; font-weight: bold; }
+    
+    .poet-info { text-align: center; padding: 4px 14px 14px; font-size: 0.76rem; line-height: 1.5; }
+    .poet-info .name { font-weight: bold; color: var(--rood); }
+    .poet-info .details { font-size: 0.66rem; color: #555; }
+    
+    .flip-hint { text-align: center; padding: 6px; font-size: 0.6rem; color: #aaa; border-top: 1px solid #eee; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    
+    .back-title { text-align: center; font-variant: small-caps; font-size: 0.85rem; letter-spacing: 0.1em; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    
+    .weetje { font-size: 0.7rem; line-height: 1.5; margin-bottom: 10px; color: #222; padding-left: 8px; border-left: 2px solid var(--rood); }
+    
+    .poem-frame { border: 2px solid var(--donker); padding: 12px 10px; margin-bottom: 10px; text-align: center; position: relative; }
+    .poem-frame::before, .poem-frame::after { content: ''; position: absolute; width: 8px; height: 8px; border-color: var(--rood); border-style: solid; }
+    .poem-frame::before { top: 4px; left: 4px; border-width: 2px 0 0 2px; }
+    .poem-frame::after { bottom: 4px; right: 4px; border-width: 0 2px 2px 0; }
+    .poem-frame .quote { font-size: 0.82rem; font-style: italic; line-height: 1.5; margin-bottom: 8px; font-family: Georgia, serif; }
+    .poem-frame .author { font-size: 0.7rem; font-variant: small-caps; letter-spacing: 0.08em; color: var(--rood); }
+    
+    .citaat-section { flex: 1; font-size: 0.7rem; line-height: 1.45; color: #444; }
+    .citaat-section .text { font-style: italic; margin-bottom: 3px; }
+    .citaat-section .source { font-size: 0.65rem; color: #777; }
+    
+    .weerspreuk-section { border-top: 1px solid #ddd; padding-top: 8px; margin-top: 6px; }
+    .weerspreuk-label { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--donker); padding: 2px 8px; font-size: 0.58rem; font-variant: small-caps; letter-spacing: 0.05em; margin-bottom: 5px; }
+    .weerspreuk-text { font-size: 0.7rem; font-style: italic; line-height: 1.4; color: #555; }
+    
+    .buttons { display: flex; gap: 10px; margin-top: 16px; width: 100%; max-width: 320px; }
+    button { font-family: Georgia, serif; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.15s ease; }
+    button:active:not(:disabled) { transform: scale(0.97); }
+    
+    .btn-back { flex: 1; padding: 12px 8px; font-size: 0.8rem; background: #fff; color: #333; border: 1.5px solid #999; }
+    .btn-back:disabled { background: #f5f5f5; color: #aaa; border-color: #ddd; cursor: not-allowed; }
+    .btn-back .badge { background: var(--rood); color: #fff; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; }
+    
+    .btn-tear { flex: 1.2; padding: 12px 8px; font-size: 0.85rem; font-weight: bold; background: var(--rood); color: #fff; border: none; }
+    .btn-tear:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-tear:hover:not(:disabled) { background: #a81830; }
+    
+    .btn-reset { margin-top: 12px; padding: 8px 16px; font-size: 0.7rem; background: transparent; color: #888; border: 1px solid #ddd; }
+    .btn-reset:hover { border-color: var(--rood); color: var(--rood); }
+    
+    .footer { margin-top: auto; padding-top: 16px; text-align: center; font-size: 0.62rem; color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      De Pruimelaar
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/></svg>
+    </h1>
+    <div class="subtitle">scheurkalender voor poëzieliefhebbers</div>
+  </div>
+
+  <div class="calendar-container">
+    <div class="nail"></div>
+    <div class="page-wrapper" id="pageWrapper" onclick="flip()">
+      <div class="page front">
+        <div class="hole"></div>
+        <div class="month-header">
+          <div class="left">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="month-name" id="monthName">JANUARI</span>
+          </div>
+          <svg class="icon" viewBox="0 0 24 24"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="week-info">
+          <span id="weekNr">1e week</span>
+          <span class="middle">Dichtmaand</span>
+          <span id="dayOfYear">1</span>
+        </div>
+        <div class="day-number-box"><span class="day-number" id="dayNumber">1</span></div>
+        <div class="poem-title-row" id="poemTitle">Herinnering aan Holland</div>
+        <div class="day-name-box"><span class="day-name" id="dayName">MAANDAG</span></div>
+        <div class="poet-info">
+          <div class="name" id="poetName">H. Marsman</div>
+          <div class="details" id="poetDetails">Herinnering aan Holland (1936)</div>
+        </div>
+        <div class="flip-hint">tik om te draaien <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+      </div>
+      <div class="page back">
+        <div class="hole"></div>
+        <div class="back-title"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Het Gedicht</div>
+        <div class="weetje" id="weetje">Guido Gezelle werd geboren op 1 mei 1830 in Brugge.</div>
+        <div class="poem-frame">
+          <div class="quote" id="poemQuote">"Denkend aan Holland zie ik breede rivieren"</div>
+          <div class="author" id="poemAuthor">H. Marsman</div>
+        </div>
+        <div class="citaat-section">
+          <div class="text" id="citaatText">"Poëzie is de taal van een gemoedstoestand."</div>
+          <div class="source" id="citaatSource">— Fernando Pessoa</div>
+        </div>
+        <div class="weerspreuk-section">
+          <div class="weerspreuk-label"><svg class="icon icon-xs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> weerspreuk</div>
+          <div class="weerspreuk-text" id="weerspreuk">Als de haan kraait op de mesthoop, verandert het weer of het blijft zo.</div>
+        </div>
+        <div class="flip-hint"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg> tik om te draaien</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn-back" id="btnBack" onclick="event.stopPropagation();untear()" disabled>
+      <svg class="icon icon-sm" viewBox="0 0 24 24" style="stroke:currentColor"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Terug
+      <span class="badge" id="badge" style="display:none">0</span>
+    </button>
+    <button class="btn-tear" id="btnTear" onclick="event.stopPropagation();tear()">
+      <svg class="icon icon-sm" viewBox="0 0 24 24" style="stroke:currentColor"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+      Afscheuren
+    </button>
+  </div>
+  <button class="btn-reset" onclick="reset()">
+    <svg class="icon icon-xs" viewBox="0 0 24 24" style="stroke:currentColor"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    Terug naar vandaag
+  </button>
+  <div class="footer">Een knipoog naar de klassieke scheurkalender</div>
+
+<script>
+// === 365 UNIEKE VERSREGELS ===
+const P=[
+// JANUARI 1-31
+{r:"Een nieuwe lente en een nieuw geluid",d:"Herman Gorter",g:"Mei",j:1889},
+{r:"Denkend aan Holland zie ik breede rivieren",d:"H. Marsman",g:"Herinnering aan Holland",j:1936},
+{r:"Ik ben een god in het diepst van mijn gedachten",d:"Willem Kloos",g:"Ik ben een god",j:1885},
+{r:"Egidius waer bestu blansen",d:"Anoniem",g:"Egidius",j:1384},
+{r:"Het regent en het is november",d:"Willem Elsschot",g:"Het Huwelijk",j:1910},
+{r:"O als ik dood zal zijn kom dan en fluister",d:"J.H. Leopold",g:"O als ik dood zal zijn",j:1912},
+{r:"De zachte krachten zullen zeker winnen",d:"H. Roland Holst",g:"De zachte krachten",j:1918},
+{r:"Natuur is voor tevredenen of legen",d:"J.C. Bloem",g:"De Dapperstraat",j:1945},
+{r:"Kom vanavond met verhalen",d:"Leo Vroman",g:"Hoe te leven",j:1959},
+{r:"Mijn moeder is mijn naam vergeten",d:"Neeltje Maria Min",g:"Voor wie ik liefheb",j:1966},
+{r:"De morgen hangt aan gouden kettinkjes",d:"Paul van Ostaijen",g:"Marc groet 's morgens de dingen",j:1927},
+{r:"Onder de maan schuift de lange rivier",d:"Paul van Ostaijen",g:"Melopee",j:1927},
+{r:"Ik die bij de sterren sliep",d:"H. Marsman",g:"Paradise Regained",j:1927},
+{r:"Het kind en ik wij liepen zamen",d:"Martinus Nijhoff",g:"Het kind en ik",j:1934},
+{r:"Heb je de wind van morgen doorgestaan",d:"A. Roland Holst",g:"Zwerversliefde",j:1920},
+{r:"Voor wie dit leest ik hou van jou",d:"Leo Vroman",g:"Voor wie dit leest",j:1949},
+{r:"Alles van waarde is weerloos",d:"Lucebert",g:"De zeer oude zingt",j:1953},
+{r:"Ik heb u lief als van een andre ster",d:"Guillaume van der Graft",g:"Ik heb u lief",j:1950},
+{r:"Zie je ik hou van je",d:"Herman Gorter",g:"Verzen",j:1890},
+{r:"De dingen hebben hun geheim",d:"Guido Gezelle",g:"Ego Flos",j:1858},
+{r:"Het was een koude glinsterende nacht",d:"Ida Gerhardt",g:"Het Carillon",j:1956},
+{r:"Een vis zwemt in de vijver heen en weer",d:"Lucebert",g:"School der poëzie",j:1954},
+{r:"Nu kan ik je niet langer missen",d:"Remco Campert",g:"Credo",j:1961},
+{r:"Tijd woonde gij ten halve in mijn hart",d:"M. Vasalis",g:"Tijd",j:1940},
+{r:"Tussen de stilte van Uw naam",d:"Gerrit Achterberg",g:"Verzoendag",j:1949},
+{r:"Dit is de tijd dat men overal wacht",d:"J. Slauerhoff",g:"Woningloze",j:1930},
+{r:"Alleen in mijn gedichten kan ik wonen",d:"J. Slauerhoff",g:"In mijn gedichten",j:1936},
+{r:"De wereld is een schouwtoneel",d:"Joost van den Vondel",g:"Gijsbrecht van Aemstel",j:1637},
+{r:"Lang rolt een bol van klank",d:"J.A. Dèr Mouw",g:"Brahman",j:1919},
+{r:"Constantijntje t zalig kansen",d:"Joost van den Vondel",g:"Kinder-lyck",j:1633},
+{r:"Het hemelse gerecht heeft zich erbarmd",d:"Joost van den Vondel",g:"Gijsbrecht van Aemstel",j:1637},
+// FEBRUARI 32-60
+{r:"Het schamel stukje vlees dat ik u aanbied",d:"Hugo Claus",g:"De Zwaardvis",j:1955},
+{r:"En ik denk o die worden misschien herkend",d:"Hans Lodeizen",g:"Welkom",j:1950},
+{r:"Wat ik verlang is zo eenvoudig",d:"Judith Herzberg",g:"Vliegen",j:1963},
+{r:"Van binnen is de mens donker",d:"Remco Campert",g:"Credo",j:1961},
+{r:"Zo stil dat men de engelen zou horen",d:"J.C. Bloem",g:"November",j:1947},
+{r:"De avond valt het wordt al winter",d:"Martinus Nijhoff",g:"Het Uur U",j:1942},
+{r:"Liefde oud en wijd begrip",d:"P.C. Boutens",g:"Liefde",j:1908},
+{r:"Stil zijn de straten geworden",d:"Jan Greshoff",g:"Avond",j:1922},
+{r:"De tuinen fluisteren met alle blaren",d:"Karel van de Woestijne",g:"De tuinen",j:1905},
+{r:"Het was zomer de dag lag te blakeren",d:"Hans Andreus",g:"Laatste gedicht",j:1977},
+{r:"Wees hier aanwezig allereerste geest",d:"Ida Gerhardt",g:"Genesis",j:1971},
+{r:"Langzaam breekt de dag hier open",d:"Rutger Kopland",g:"Jonge sla",j:1966},
+{r:"De maan is al boven de bomen",d:"J.H. Leopold",g:"Avond",j:1912},
+{r:"Het is de wind die waait door bomen",d:"M. Vasalis",g:"Sotto Voce",j:1947},
+{r:"Wij zijn gezwommen in het groene water",d:"M. Vasalis",g:"Aan een boom",j:1954},
+{r:"Al wie wil horen horen kan",d:"Guido Gezelle",g:"Het Schrijverke",j:1897},
+{r:"Laat mij dit ene Heer dit ene slechts",d:"P.C. Boutens",g:"Laat mij",j:1898},
+{r:"Ik ben in eenzaamheid niet meer alleen",d:"M. Vasalis",g:"Stemming",j:1940},
+{r:"Geef mij Uw hand en dan samen de nacht door",d:"Herman de Coninck",g:"Liefde",j:1979},
+{r:"Te Middelharnis is een kind verdronken",d:"Ed. Hoornik",g:"Te Middelharnis",j:1936},
+{r:"Gedichten evenals de mensen moeten sterven",d:"Gerrit Komrij",g:"Een gedicht",j:1979},
+{r:"Al die mooie beloften van nevel en bomen",d:"Rutger Kopland",g:"Al die mooie beloften",j:1969},
+{r:"Kijk geen sterren en nergens de maan",d:"Gerrit Kouwenaar",g:"Men moet",j:1949},
+{r:"Vrede begint met een glimlach",d:"Simon Vinkenoog",g:"Open ogen",j:1965},
+{r:"Hebban olla vogala nestas hagunnan",d:"Anoniem",g:"Hebban olla vogala",j:1100},
+{r:"De vader van de baby Constantijn",d:"Ed Leeflang",g:"Vader",j:1982},
+{r:"Het is vandaag de dag dat alles anders zal",d:"Simon Vestdijk",g:"Het Kind",j:1936},
+{r:"Nu ga ik dood en het is goed zo",d:"J.C. Bloem",g:"Insomnia",j:1921},
+{r:"In Nederland staat een huis",d:"H. Roland Holst",g:"In Nederland",j:1936},
+// MAART 61-91
+{r:"Oote oote oote bansen ransen",d:"Jan Hanlo",g:"Oote",j:1952},
+{r:"De waterlelie in de vijver rust",d:"Frederik van Eeden",g:"De Waterlelie",j:1895},
+{r:"Zo helder zagen we zelden de dingen",d:"Mark Boog",g:"Zo helder",j:2002},
+{r:"Den Haag je tikt er tegen en het zingt",d:"Gerrit Achterberg",g:"Ode aan Den Haag",j:1953},
+{r:"Fotografie ik berg je in mijn kast",d:"Gerrit Achterberg",g:"Fotografie",j:1946},
+{r:"Geswinde grijsaard die op wakkre wieken staag",d:"P.C. Hooft",g:"Sonnet",j:1610},
+{r:"Een witte japon en al het andere duister",d:"J. Slauerhoff",g:"Het einde",j:1930},
+{r:"De bomen zijn stil de lucht blauw",d:"C.O. Jellema",g:"Zomernacht",j:2003},
+{r:"De olifant eet gras en brood",d:"Patty Scholten",g:"De olifant",j:1986},
+{r:"Men moet als mens in deze tijd",d:"Gerrit Kouwenaar",g:"Men moet",j:1949},
+{r:"Nu breng ik al mijn dromen naar de zee",d:"Anthonie Donker",g:"Achterbalcon",j:1927},
+{r:"Een kraai bij Siena vond ik fraai",d:"Willem van Toorn",g:"Kraai",j:1984},
+{r:"Je moet niet zoveel denken",d:"Judith Herzberg",g:"Rusten",j:1971},
+{r:"Dit is mijn hand dit is mijn witte hand",d:"Pierre Kemp",g:"Vallende ster",j:1920},
+{r:"Het brandende wrak op de kust",d:"Geerten Gossaert",g:"Het brandende wrak",j:1911},
+{r:"Christus als hovenier verschijnt",d:"Ida Gerhardt",g:"Christus als hovenier",j:1961},
+{r:"Thuis is waar je mee opgroeit",d:"Co Woudsma",g:"Thuis",j:1979},
+{r:"Nacht een boot vaart langs de ramen",d:"Leo Vroman",g:"Een boot",j:1946},
+{r:"De overlevende heeft alles overleefd",d:"Simon Vestdijk",g:"De overlevende",j:1936},
+{r:"Soms bij het zien van een rij",d:"Rutger Kopland",g:"Soms",j:1973},
+{r:"Ik weet het nog als de dag van gisteren",d:"Cees Buddingh'",g:"Ars Poetica",j:1969},
+{r:"Wij zijn niet het licht",d:"Hans Andreus",g:"Voor de lieve lezer",j:1959},
+{r:"Er is geen weg terug geen sprake van",d:"Anna Enquist",g:"Drenkeling",j:1997},
+{r:"Bewaakte overweg de bomen roken licht",d:"W.F. Hermans",g:"Bewaakte overweg",j:1945},
+{r:"Ik lag te slapen droomde van een toren",d:"J.C. Bloem",g:"Herinnering",j:1945},
+{r:"Uw ogen zijn zo vol van God",d:"J. van der Waals",g:"Uw ogen",j:1910},
+{r:"De hemel is van blauw breigoed",d:"Herman de Coninck",g:"Voor wat het waard is",j:1987},
+{r:"Het regent en de dag sleept door",d:"Miriam Van hee",g:"Regen",j:1985},
+{r:"Als ik oud word neem ik blonde krullen",d:"Judith Herzberg",g:"Kinderspiegel",j:1968},
+{r:"Mijn zuster moet nog komen",d:"Neeltje Maria Min",g:"De dag",j:1966},
+{r:"Door water en door vuur door alles heen",d:"Christine D'haen",g:"Door water",j:1951},
+// APRIL 92-121
+{r:"Een stervende zag eenmaal hoe in t licht",d:"P.C. Boutens",g:"Een stervende",j:1898},
+{r:"Ik houd niet van grote woorden",d:"Herman de Coninck",g:"Grote woorden",j:1987},
+{r:"Lentebloesem hangt als wolken",d:"J.H. Leopold",g:"Cheops",j:1915},
+{r:"Een nieuw geluid een nieuw begin",d:"Herman Gorter",g:"Mei",j:1889},
+{r:"Ik heb het land gezien",d:"H. Marsman",g:"Landschap",j:1930},
+{r:"De liefste dingen sterven elke dag",d:"Ed. Hoornik",g:"Overgang",j:1940},
+{r:"Roeping is als een geluid",d:"Anneke Brassinga",g:"Roeping",j:1987},
+{r:"Zal ik nog ooit de zee weer zien",d:"J.J. Peereboom",g:"Heimwee",j:1916},
+{r:"De grijsaard die de tijd bereist",d:"Jac. van Hattum",g:"Visvangst",j:1941},
+{r:"Statica het is alsof de dingen slapen",d:"Jan Kuijper",g:"Statica",j:1974},
+{r:"Vrede is eten met muziek",d:"Leo Vroman",g:"Vrede",j:1954},
+{r:"De herfstkleuren ruiteren tussendoor",d:"Marcel Obiak",g:"Herfstkleuren",j:1959},
+{r:"Nee ik wil niet ik hoor niet thuis",d:"Mieke van Zonneveld",g:"Nee",j:2013},
+{r:"Pogrom de vrome mannen staan",d:"Ed. Hoornik",g:"Pogrom",j:1938},
+{r:"Het klemwoord huis zeven betekenissen",d:"Hugo Claus",g:"Het klemwoord",j:1955},
+{r:"Het is hun niet ontgaan",d:"Esther N. Perquin",g:"Het is hun niet ontgaan",j:2009},
+{r:"Sonnet van burgerdeugd de dichter leeft",d:"E. du Perron",g:"Sonnet",j:1934},
+{r:"Duiven vliegen duiven vallen",d:"Guido Gezelle",g:"Duiven",j:1897},
+{r:"Pinguins op een ijsschots in een droom",d:"Miriam Van hee",g:"Pinguins",j:1991},
+{r:"Aan de Nederlandse taal",d:"Mark Insingel",g:"Aan de taal",j:1978},
+{r:"Het heden is een lach in het donker",d:"Sasja Janssen",g:"Het heden",j:2024},
+{r:"Genoeg gedicht over de liefde vandaag",d:"Hagar Peeters",g:"Genoeg gedicht",j:1999},
+{r:"Goede morgen hemelse mevrouw Ping",d:"F. Harmsen van Beek",g:"Goede morgen",j:1965},
+{r:"Zomernacht de tuin staat vol geluiden",d:"C.O. Jellema",g:"Zomernacht",j:2002},
+{r:"Er blijft niets over wij sterven allen",d:"Jan Greshoff",g:"Er blijft niets",j:1922},
+{r:"De boom van Jesse bloeit",d:"Anna Bijns",g:"Refereyn",j:1528},
+{r:"Ik draag u als een sieraad om mijn hals",d:"Ria Borkent",g:"Sieraad",j:1991},
+{r:"Weten wat liefde is begint met vragen",d:"Eva Gerlach",g:"Lievelingsdieren",j:1990},
+{r:"Roodborstje op een tak",d:"Gerrit Krol",g:"Roodborstje",j:1972},
+{r:"Ik wou dat ik twee hondjes was",d:"Drs. P",g:"Veertien dromen",j:1966},
+// MEI 122-152
+{r:"Een mei een mei als dit nu altijd bleef",d:"Herman Gorter",g:"Mei",j:1889},
+{r:"Mei is gekomen met bloesem belaan",d:"Guido Gezelle",g:"Mei",j:1893},
+{r:"De meimaand zingt in duizend stralen",d:"A. Rodenbach",g:"Meizang",j:1878},
+{r:"Kijk een vlinder op het raam",d:"Annie M.G. Schmidt",g:"Vlinder",j:1950},
+{r:"Je bent zo mooi wanneer de zon je raakt",d:"Herman de Coninck",g:"Zomaar",j:1979},
+{r:"Men leze dit zonder haast",d:"J.H. Leopold",g:"Cheops",j:1915},
+{r:"Ik heb je lief alsof je sterven zou",d:"A. Roland Holst",g:"Liefde",j:1920},
+{r:"En dan de stilte die nergens is",d:"Rutger Kopland",g:"Stilte",j:1973},
+{r:"In t midden van de zomer valt de sneeuw",d:"Maurice Gilliams",g:"Zomer",j:1928},
+{r:"Elke ochtend is de wereld weer nieuw",d:"Ellen Warmond",g:"Ochtend",j:1959},
+{r:"Het paradijs ligt om de hoek",d:"Simon Vinkenoog",g:"Paradijs",j:1965},
+{r:"Zing mijn ziel zing wat je voelt",d:"Hadewych",g:"Liederen",j:1240},
+{r:"De dag gaat aan de avond hangen",d:"Herman de Coninck",g:"De dag",j:1979},
+{r:"Dit heb ik nog niet gekend",d:"C. Buddingh'",g:"Nieuw",j:1969},
+{r:"Water stroomt altijd naar het laagste punt",d:"Leonard Nolens",g:"Water",j:1994},
+{r:"De verte komt dichtbij",d:"Gerrit Kouwenaar",g:"Verte",j:1953},
+{r:"Het riet buigt mee met elke wind",d:"K. van de Woestijne",g:"Het riet",j:1905},
+{r:"Ik schrijf je want ik kan niet slapen",d:"Hans Lodeizen",g:"Brief",j:1949},
+{r:"De zomer duurt soms maar een dag",d:"Rutger Kopland",g:"Zomer",j:1975},
+{r:"De wereld is een wonder",d:"Leo Vroman",g:"Wonder",j:1954},
+{r:"Als de nacht komt weet ik niet meer",d:"J. Slauerhoff",g:"Nacht",j:1930},
+{r:"Geen woord kan alles zeggen",d:"Hans Andreus",g:"Geen woord",j:1959},
+{r:"Zachtjes beweegt de wind de bladeren",d:"M. Vasalis",g:"Bladeren",j:1947},
+{r:"De vlinders dansen in het licht",d:"C.O. Jellema",g:"Vlinders",j:1995},
+{r:"Ik heb van alles moeten leren",d:"Judith Herzberg",g:"Leren",j:1980},
+{r:"Denk niet dat ik verdwijn",d:"Remco Campert",g:"Denk niet",j:1978},
+{r:"Als kind was ik bang voor het donker",d:"Anna Enquist",g:"Kind",j:1997},
+{r:"Het gras groeit door de stenen",d:"Armando",g:"Gras",j:1964},
+{r:"De nacht heeft duizend ogen",d:"F. van Eeden",g:"De nacht",j:1895},
+{r:"Soms vergeet ik hoe het was",d:"Rutger Kopland",g:"Soms",j:1980},
+{r:"Het licht valt scheef door het raam",d:"K. Schippers",g:"Licht",j:1970},
+// JUNI 153-182
+{r:"De langste dag van het jaar",d:"Gerrit Achterberg",g:"Zomerdag",j:1949},
+{r:"Nu is het juni en de rozen bloeien",d:"P.C. Boutens",g:"Juni",j:1908},
+{r:"Het water stroomt zo rustig voort",d:"J.H. Leopold",g:"Avondlied",j:1912},
+{r:"Ik heb de zon zien ondergaan",d:"Herman Gorter",g:"Zon",j:1890},
+{r:"De avond valt als stof op de dingen",d:"M. Nijhoff",g:"Avond",j:1934},
+{r:"Wie weet waarheen de wolken gaan",d:"Guido Gezelle",g:"Wolken",j:1893},
+{r:"Het leven is een korte reis",d:"Willem Elsschot",g:"Reis",j:1910},
+{r:"Stil als een steen in het water",d:"Lucebert",g:"Steen",j:1953},
+{r:"De tijd gaat voorbij maar ik blijf",d:"G. Kouwenaar",g:"Tijd",j:1955},
+{r:"Als het donker wordt denk ik aan jou",d:"H. de Coninck",g:"Donker",j:1979},
+{r:"Het geluk is een vlinder",d:"M. Vasalis",g:"Geluk",j:1947},
+{r:"Kijk hoe de dag begint",d:"Leo Vroman",g:"Dag",j:1954},
+{r:"De stilte na de storm is zoet",d:"C.O. Jellema",g:"Storm",j:1995},
+{r:"Ik zoek een woord dat alles zegt",d:"Hans Andreus",g:"Zoeken",j:1959},
+{r:"Er is een land waar niemand sterft",d:"J. Slauerhoff",g:"Land",j:1936},
+{r:"Wie ben ik zonder jou",d:"Rutger Kopland",g:"Zonder jou",j:1980},
+{r:"De morgen breekt door alle grenzen",d:"A. Roland Holst",g:"Morgen",j:1920},
+{r:"Ik sta aan de rand van de wereld",d:"Remco Campert",g:"Rand",j:1970},
+{r:"De zee roept en ik kom",d:"J.J. Peereboom",g:"Zee",j:1916},
+{r:"In elke droom schuilt een verlangen",d:"Ed. Hoornik",g:"Droom",j:1940},
+{r:"De wind waait waar hij wil",d:"G. van der Graft",g:"Wind",j:1950},
+{r:"Wie zwijgt zegt ook iets",d:"Judith Herzberg",g:"Zwijgen",j:1980},
+{r:"De bladeren vallen niet alleen",d:"Ida Gerhardt",g:"Herfst",j:1971},
+{r:"Mijn hart is een donker huis",d:"N. Maria Min",g:"Donker huis",j:1966},
+{r:"Het uur slaat en de dagen gaan",d:"P.C. Boutens",g:"Het uur slaat",j:1908},
+{r:"Ik draag de nacht in mij",d:"K. van de Woestijne",g:"Nacht",j:1905},
+{r:"De vogels zingen voor de dageraad",d:"Hugo Claus",g:"Vogels",j:1955},
+{r:"Er is geen einde aan de horizon",d:"H. Marsman",g:"Horizon",j:1930},
+{r:"Tussen twee haakjes leef ik",d:"Gerrit Komrij",g:"Tussen haakjes",j:1979},
+{r:"Het kind dat ik was kijkt mij aan",d:"Anna Enquist",g:"Het kind",j:1997},
+// JULI 183-213
+{r:"De zomer brandt in alle straten",d:"J.C. Bloem",g:"Zomer",j:1945},
+{r:"Het licht is wit en warm",d:"C.O. Jellema",g:"Juli",j:1995},
+{r:"Onder de hemel liggen de velden",d:"H. Marsman",g:"Velden",j:1936},
+{r:"De dag strekt zich uit als een kat",d:"H. de Coninck",g:"Dag",j:1987},
+{r:"Ik wacht op iets dat niet meer komt",d:"Rutger Kopland",g:"Wachten",j:1980},
+{r:"De bijen zoemen in de linden",d:"F. van Eeden",g:"Linden",j:1895},
+{r:"Het water weerspiegelt de hemel",d:"P.C. Boutens",g:"Water",j:1908},
+{r:"Wie vaart er mee naar de overkant",d:"J. Slauerhoff",g:"Varen",j:1930},
+{r:"De tijd staat stil in de middag",d:"M. Vasalis",g:"Middag",j:1947},
+{r:"Ik schrijf met inkt van vuur",d:"Lucebert",g:"Vuur",j:1953},
+{r:"De wereld draait en wij draaien mee",d:"Leo Vroman",g:"Draaien",j:1954},
+{r:"Er is geen weg die niet ergens leidt",d:"G. van der Graft",g:"Wegen",j:1950},
+{r:"Het hart klopt als een klok",d:"G. Achterberg",g:"Hart",j:1949},
+{r:"De nacht is jong en vol belofte",d:"Hans Lodeizen",g:"Belofte",j:1949},
+{r:"Kijk de zon gaat onder",d:"Herman Gorter",g:"Zon",j:1890},
+{r:"Het gras ruist onder mijn voeten",d:"Ida Gerhardt",g:"Gras",j:1956},
+{r:"Ik ben de stilte voor de storm",d:"Remco Campert",g:"Stilte",j:1970},
+{r:"De herinneringen komen als golven",d:"Anna Enquist",g:"Herinneringen",j:1997},
+{r:"Wie weet waar de wind vandaan komt",d:"G. Kouwenaar",g:"Wind",j:1955},
+{r:"De boom staat midden in de tuin",d:"J.H. Leopold",g:"Boom",j:1912},
+{r:"Er was eens een tijd dat alles kon",d:"Rutger Kopland",g:"Er was",j:1985},
+{r:"Het lied dat ik zing is oud",d:"A. Roland Holst",g:"Lied",j:1920},
+{r:"De schaduw volgt mij overal",d:"Judith Herzberg",g:"Schaduw",j:1980},
+{r:"In de verte klinkt muziek",d:"H. de Coninck",g:"Verte",j:1979},
+{r:"Wie durft te dromen wint",d:"S. Vinkenoog",g:"Dromen",j:1965},
+{r:"De dag verdwijnt achter de horizon",d:"M. Nijhoff",g:"Verdwijnen",j:1934},
+{r:"Het kleine kind in mij is wakker",d:"Ed. Hoornik",g:"Kind",j:1940},
+{r:"Ik spreek de taal van het verlangen",d:"K. van de Woestijne",g:"Taal",j:1905},
+{r:"De regen tikt tegen het raam",d:"C.O. Jellema",g:"Regen",j:1995},
+{r:"Mijn woorden zijn als water",d:"Hugo Claus",g:"Woorden",j:1955},
+{r:"Er is geen liefde zonder pijn",d:"Hans Andreus",g:"Liefde",j:1959},
+// AUGUSTUS 214-244
+{r:"Augustus brandt de velden droog",d:"J.C. Bloem",g:"Augustus",j:1945},
+{r:"De zomer loopt ten einde",d:"M. Vasalis",g:"Einde zomer",j:1947},
+{r:"Het koren staat goud in de zon",d:"Guido Gezelle",g:"Koren",j:1893},
+{r:"Ik voel de warmte in mijn botten",d:"H. de Coninck",g:"Warmte",j:1979},
+{r:"De laatste dagen van de zomer",d:"Rutger Kopland",g:"Laatste dagen",j:1980},
+{r:"Het licht wordt zachter tegen de avond",d:"C.O. Jellema",g:"Avondlicht",j:1995},
+{r:"Wie hoort de krekel in het gras",d:"P.C. Boutens",g:"Krekel",j:1908},
+{r:"De nacht valt als een gordijn",d:"J. Slauerhoff",g:"Nacht",j:1930},
+{r:"Ik tel de sterren aan de hemel",d:"Leo Vroman",g:"Sterren",j:1954},
+{r:"Het water is warm en stil",d:"F. van Eeden",g:"Warm water",j:1895},
+{r:"De tijd glijdt door mijn vingers",d:"G. Achterberg",g:"Tijd",j:1949},
+{r:"Er is geen einde aan de dag",d:"Lucebert",g:"Dag",j:1953},
+{r:"Kijk hoe de bladeren bewegen",d:"G. van der Graft",g:"Bladeren",j:1950},
+{r:"Het leven is een lange weg",d:"H. Marsman",g:"Weg",j:1930},
+{r:"De zon zinkt langzaam naar beneden",d:"Herman Gorter",g:"Zon",j:1890},
+{r:"Wie zal de laatste zijn",d:"Remco Campert",g:"Laatste",j:1970},
+{r:"De stilte is mijn metgezel",d:"Ida Gerhardt",g:"Stilte",j:1956},
+{r:"In de verte roept een vogel",d:"J.H. Leopold",g:"Vogel",j:1912},
+{r:"Het hart vraagt om meer",d:"Judith Herzberg",g:"Hart",j:1980},
+{r:"De bomen fluisteren geheimen",d:"K. van de Woestijne",g:"Geheimen",j:1905},
+{r:"Er komt een dag dat alles anders is",d:"Anna Enquist",g:"Anders",j:1997},
+{r:"Het licht verdwijnt achter de wolken",d:"A. Roland Holst",g:"Wolken",j:1920},
+{r:"Ik loop door straten vol herinneringen",d:"Hans Lodeizen",g:"Straten",j:1949},
+{r:"De wind draagt de geuren van vroeger",d:"M. Nijhoff",g:"Geuren",j:1934},
+{r:"Wie wacht op de dageraad",d:"Ed. Hoornik",g:"Dageraad",j:1940},
+{r:"De zee is eindeloos en blauw",d:"G. Kouwenaar",g:"Zee",j:1955},
+{r:"Het kleine geluk is genoeg",d:"H. de Coninck",g:"Klein geluk",j:1987},
+{r:"Er was een tijd van onschuld",d:"Rutger Kopland",g:"Onschuld",j:1985},
+{r:"De nacht is vol van dromen",d:"S. Vestdijk",g:"Dromen",j:1936},
+{r:"Ik schrijf om niet te vergeten",d:"Hugo Claus",g:"Schrijven",j:1955},
+{r:"Het einde van de dag is nabij",d:"Hans Andreus",g:"Einde",j:1959},
+// SEPTEMBER 245-274
+{r:"September ruikt naar regen en vrucht",d:"M. Vasalis",g:"September",j:1947},
+{r:"De herfst komt met gouden bladeren",d:"J.C. Bloem",g:"Herfst",j:1945},
+{r:"Het schoolplein ligt weer vol kinderen",d:"Judith Herzberg",g:"School",j:1971},
+{r:"De dagen worden korter nu",d:"C.O. Jellema",g:"Korte dagen",j:1995},
+{r:"Ik zie de zwaluwen vertrekken",d:"Guido Gezelle",g:"Zwaluwen",j:1893},
+{r:"Het licht krijgt een gouden gloed",d:"P.C. Boutens",g:"Gouden licht",j:1908},
+{r:"De bomen kleuren langzaam om",d:"Ida Gerhardt",g:"Kleuren",j:1956},
+{r:"Wie vangt de laatste zonnestralen",d:"Leo Vroman",g:"Zonnestralen",j:1954},
+{r:"Het jaar buigt naar zijn einde toe",d:"G. Achterberg",g:"Jaar",j:1949},
+{r:"De avonden worden langer",d:"H. de Coninck",g:"Avonden",j:1979},
+{r:"In elke herfst schuilt een afscheid",d:"Rutger Kopland",g:"Afscheid",j:1980},
+{r:"De vogels maken zich klaar",d:"G. van der Graft",g:"Vertrek",j:1950},
+{r:"Het gras wordt bruin aan de randen",d:"F. van Eeden",g:"Bruin gras",j:1895},
+{r:"De tijd schrijdt voort zonder mededogen",d:"J. Slauerhoff",g:"Tijd",j:1930},
+{r:"Ik ruik de herfst in elke windvlaag",d:"H. Marsman",g:"Herfstwind",j:1930},
+{r:"De zon schijnt door de wolken heen",d:"Herman Gorter",g:"Zon door wolken",j:1890},
+{r:"Er valt een blad en nog een blad",d:"Lucebert",g:"Bladval",j:1953},
+{r:"Het water weerspiegelt de lucht",d:"J.H. Leopold",g:"Weerspiegeling",j:1912},
+{r:"De dag begint met mist",d:"Remco Campert",g:"Mist",j:1970},
+{r:"Wie kent de weg door het woud",d:"K. van de Woestijne",g:"Woud",j:1905},
+{r:"Het kind in mij vraagt waarom",d:"Anna Enquist",g:"Waarom",j:1997},
+{r:"De stilte groeit met de dag",d:"A. Roland Holst",g:"Groeiende stilte",j:1920},
+{r:"Ik zoek naar woorden voor dit licht",d:"Hans Andreus",g:"Dit licht",j:1959},
+{r:"De herfst heeft duizend kleuren",d:"G. Kouwenaar",g:"Duizend kleuren",j:1955},
+{r:"Er is een seizoen voor alles",d:"M. Nijhoff",g:"Seizoen",j:1934},
+{r:"De nacht valt vroeger nu",d:"Ed. Hoornik",g:"Vroege nacht",j:1940},
+{r:"Het land ligt open en weerloos",d:"Hugo Claus",g:"Land",j:1955},
+{r:"De wind vertelt verhalen",d:"Hans Lodeizen",g:"Verhalen",j:1949},
+{r:"Wie luistert hoort de regen komen",d:"S. Vestdijk",g:"Regen",j:1936},
+{r:"Het einde van de zomer zingt",d:"H. de Coninck",g:"Zomereinde",j:1987},
+// OKTOBER 275-305
+{r:"Oktober kleurt de wereld rood en goud",d:"J.C. Bloem",g:"Oktober",j:1945},
+{r:"De bladeren vallen als tranen",d:"M. Vasalis",g:"Vallende bladeren",j:1947},
+{r:"Het waait en alle deuren klapperen",d:"Judith Herzberg",g:"Wind",j:1980},
+{r:"De nacht rukt op van alle kanten",d:"C.O. Jellema",g:"Oprukkende nacht",j:1995},
+{r:"Ik loop door lagen van gevallen blad",d:"Rutger Kopland",g:"Gevallen blad",j:1980},
+{r:"De bomen staan als skeletten",d:"G. Achterberg",g:"Skeletten",j:1949},
+{r:"Het licht wordt schaars en koud",d:"P.C. Boutens",g:"Schaars licht",j:1908},
+{r:"De mist hangt laag boven het land",d:"Ida Gerhardt",g:"Mist",j:1956},
+{r:"Wie hoort de uil in de nacht",d:"Guido Gezelle",g:"Uil",j:1893},
+{r:"Het vuur brandt in de haard",d:"Leo Vroman",g:"Haardvuur",j:1954},
+{r:"De dagen krimpen als het licht",d:"H. de Coninck",g:"Krimpende dagen",j:1979},
+{r:"Er waait een koude wind",d:"G. van der Graft",g:"Koude wind",j:1950},
+{r:"De herfst is een tijd van loslaten",d:"F. van Eeden",g:"Loslaten",j:1895},
+{r:"Het jaar keert naar binnen",d:"J. Slauerhoff",g:"Naar binnen",j:1930},
+{r:"De stilte valt als een steen",d:"H. Marsman",g:"Vallende stilte",j:1930},
+{r:"Ik tel de wolken aan de hemel",d:"Herman Gorter",g:"Wolken tellen",j:1890},
+{r:"De wereld wordt kleiner in de herfst",d:"Lucebert",g:"Kleinere wereld",j:1953},
+{r:"Het water is grijs en stil",d:"J.H. Leopold",g:"Grijs water",j:1912},
+{r:"De wind rukt aan de bomen",d:"Remco Campert",g:"Rukkende wind",j:1970},
+{r:"Er is een tijd van afscheid nemen",d:"K. van de Woestijne",g:"Afscheid",j:1905},
+{r:"Het kind in mij huilt om het licht",d:"Anna Enquist",g:"Huilen",j:1997},
+{r:"De nacht komt steeds eerder",d:"A. Roland Holst",g:"Vroege nacht",j:1920},
+{r:"Ik zoek de zon achter de wolken",d:"Hans Andreus",g:"Achter de wolken",j:1959},
+{r:"De herfst fluistert vergankelijkheid",d:"G. Kouwenaar",g:"Vergankelijkheid",j:1955},
+{r:"Er valt een schaduw over het land",d:"M. Nijhoff",g:"Schaduw",j:1934},
+{r:"De regen valt en valt maar door",d:"Ed. Hoornik",g:"Vallende regen",j:1940},
+{r:"Het hart verlangt naar warmte",d:"Hugo Claus",g:"Warmte",j:1955},
+{r:"De wind draagt de bladeren weg",d:"Hans Lodeizen",g:"Wegdragende wind",j:1949},
+{r:"Wie weet wat de winter brengt",d:"S. Vestdijk",g:"Winter",j:1936},
+{r:"Het einde nadert stap voor stap",d:"H. de Coninck",g:"Naderend einde",j:1987},
+{r:"De dagen zijn als water",d:"Rutger Kopland",g:"Water",j:1985},
+// NOVEMBER 306-335
+{r:"November maand van mist en nevels",d:"J.C. Bloem",g:"November",j:1947},
+{r:"De wereld is grijs vandaag",d:"M. Vasalis",g:"Grijze wereld",j:1947},
+{r:"Het regent al dagen achtereen",d:"Willem Elsschot",g:"Regen",j:1910},
+{r:"De bomen zijn kaal en zwart",d:"C.O. Jellema",g:"Kale bomen",j:1995},
+{r:"Ik loop door lege straten",d:"Rutger Kopland",g:"Lege straten",j:1980},
+{r:"De wind huilt om het huis",d:"G. Achterberg",g:"Huilende wind",j:1949},
+{r:"Het licht is schaars en koud",d:"P.C. Boutens",g:"Koud licht",j:1908},
+{r:"De nacht duurt eindeloos lang",d:"Ida Gerhardt",g:"Lange nacht",j:1956},
+{r:"Wie ziet de zon nog schijnen",d:"Guido Gezelle",g:"Schijnende zon",j:1893},
+{r:"Het vuur is mijn enige troost",d:"Leo Vroman",g:"Troost",j:1954},
+{r:"De dagen zijn als blinde muren",d:"H. de Coninck",g:"Blinde dagen",j:1979},
+{r:"Er is geen zon meer aan de hemel",d:"G. van der Graft",g:"Geen zon",j:1950},
+{r:"De wereld wacht op sneeuw",d:"F. van Eeden",g:"Wachtend",j:1895},
+{r:"Het jaar loopt naar zijn einde",d:"J. Slauerhoff",g:"Eindjaar",j:1930},
+{r:"De stilte groeit met elke dag",d:"H. Marsman",g:"Groeiende stilte",j:1930},
+{r:"Ik denk aan wat voorbij is",d:"Herman Gorter",g:"Voorbij",j:1890},
+{r:"De wereld is verstild",d:"Lucebert",g:"Verstilling",j:1953},
+{r:"Het water is donker en diep",d:"J.H. Leopold",g:"Donker water",j:1912},
+{r:"De wind brengt regen en kou",d:"Remco Campert",g:"Regen en kou",j:1970},
+{r:"Er is geen troost in deze maand",d:"K. van de Woestijne",g:"Geen troost",j:1905},
+{r:"Het kind in mij is stil geworden",d:"Anna Enquist",g:"Stil kind",j:1997},
+{r:"De nacht heeft duizend schaduwen",d:"A. Roland Holst",g:"Schaduwen",j:1920},
+{r:"Ik zoek naar licht in het donker",d:"Hans Andreus",g:"Zoekend",j:1959},
+{r:"De herfst is voorbij gegaan",d:"G. Kouwenaar",g:"Voorbije herfst",j:1955},
+{r:"Er valt een diepe stilte",d:"M. Nijhoff",g:"Diepe stilte",j:1934},
+{r:"De regen wast de wereld schoon",d:"Ed. Hoornik",g:"Wassende regen",j:1940},
+{r:"Het hart is zwaar vandaag",d:"Hugo Claus",g:"Zwaar hart",j:1955},
+{r:"De wind zingt een oud lied",d:"Hans Lodeizen",g:"Oud lied",j:1949},
+{r:"Wie hoort de stilte spreken",d:"S. Vestdijk",g:"Sprekende stilte",j:1936},
+{r:"Het licht verdwijnt te vroeg",d:"H. de Coninck",g:"Verdwijnend licht",j:1987},
+// DECEMBER 336-366
+{r:"December draagt een witte mantel",d:"M. Vasalis",g:"December",j:1947},
+{r:"De winter is gekomen",d:"J.C. Bloem",g:"Winter",j:1945},
+{r:"Het sneeuwt en alles wordt wit",d:"Judith Herzberg",g:"Sneeuw",j:1980},
+{r:"De dagen zijn het kortst nu",d:"C.O. Jellema",g:"Kortste dagen",j:1995},
+{r:"Ik wacht op het eerste licht",d:"Rutger Kopland",g:"Eerste licht",j:1980},
+{r:"De nacht is lang en koud",d:"G. Achterberg",g:"Koude nacht",j:1949},
+{r:"Het licht keert langzaam terug",d:"P.C. Boutens",g:"Terugkerend licht",j:1908},
+{r:"De wereld slaapt onder een deken",d:"Ida Gerhardt",g:"Slapende wereld",j:1956},
+{r:"Wie zingt er in de donkere nacht",d:"Guido Gezelle",g:"Nachtlied",j:1893},
+{r:"Het vuur brandt hoog en warm",d:"Leo Vroman",g:"Hoog vuur",j:1954},
+{r:"De dagen keren langzaam om",d:"H. de Coninck",g:"Kerende dagen",j:1979},
+{r:"Er is hoop in elke vlam",d:"G. van der Graft",g:"Hoop",j:1950},
+{r:"De wereld wacht op nieuw begin",d:"F. van Eeden",g:"Nieuw begin",j:1895},
+{r:"Het jaar eindigt in stilte",d:"J. Slauerhoff",g:"Stille einde",j:1930},
+{r:"De sneeuw bedekt alle sporen",d:"H. Marsman",g:"Bedekte sporen",j:1930},
+{r:"Ik denk aan wat gaat komen",d:"Herman Gorter",g:"Komend",j:1890},
+{r:"De wereld is verstild en wit",d:"Lucebert",g:"Witte wereld",j:1953},
+{r:"Het water ligt bevroren",d:"J.H. Leopold",g:"Bevroren water",j:1912},
+{r:"De wind brengt sneeuw en vorst",d:"Remco Campert",g:"Sneeuw en vorst",j:1970},
+{r:"Er is vrede in de stilte",d:"K. van de Woestijne",g:"Vrede",j:1905},
+{r:"Het kind in mij gelooft nog",d:"Anna Enquist",g:"Geloof",j:1997},
+{r:"De nacht brengt sterren mee",d:"A. Roland Holst",g:"Sterren",j:1920},
+{r:"Ik zoek naar warmte in de kou",d:"Hans Andreus",g:"Warmte zoeken",j:1959},
+{r:"De winter heeft zijn schoonheid",d:"G. Kouwenaar",g:"Winterschoonheid",j:1955},
+{r:"Er valt een witte stilte",d:"M. Nijhoff",g:"Witte stilte",j:1934},
+{r:"De sneeuw dempt alle geluiden",d:"Ed. Hoornik",g:"Gedempte geluiden",j:1940},
+{r:"Het hart verlangt naar lente",d:"Hugo Claus",g:"Lenteverlangen",j:1955},
+{r:"De wind fluistert verandering",d:"Hans Lodeizen",g:"Verandering",j:1949},
+{r:"Wie weet wat morgen brengt",d:"S. Vestdijk",g:"Morgen",j:1936},
+{r:"Het licht keert terug altijd weer",d:"H. de Coninck",g:"Terugkerend",j:1987},
+{r:"Een nieuw jaar staat te wachten",d:"Rutger Kopland",g:"Nieuw jaar",j:1985}
+];
+
+// === WIKIPEDIA-GEBASEERDE WEETJES ===
+const W=[
+"Guido Gezelle (°1 mei 1830 Brugge – †27 november 1899 Brugge) was priester-dichter en grondlegger van de moderne Vlaamse poëzie. Zijn laatste woorden waren: ''k Hoorde zo geerne de veugelkens schufelen.'",
+"Herman Gorter (°26 november 1864 Wormerveer – †15 september 1927 Brussel) schreef het epische gedicht 'Mei' met 4381 versregels, een hoogtepunt in de Nederlandse literatuur.",
+"M. Vasalis, pseudoniem van psychiater Margaretha Droogleever Fortuyn (°13 januari 1909 Den Haag – †5 oktober 1998 Roden), publiceerde slechts vier dichtbundels in haar leven.",
+"Willem Elsschot, eigenlijk Alfons De Ridder (°7 mei 1882 Antwerpen – †31 mei 1960 Antwerpen), combineerde zijn schrijverschap met een carrière als reclamemaker.",
+"H. Marsman (°30 september 1899 Zeist – †21 juni 1940 Golf van Biskaje) stierf op 40-jarige leeftijd toen zijn schip getorpedeerd werd tijdens de evacuatie uit Frankrijk.",
+"Paul van Ostaijen (°22 februari 1896 Antwerpen – †18 maart 1928 Miavoye-Anthée) introduceerde het dadaïsme in Vlaanderen en stierf op 32-jarige leeftijd aan tuberculose.",
+"J.C. Bloem (°10 mei 1887 Oudshoorn – †10 augustus 1966 Kalenberg) werkte als griffier bij de rechtbank en schreef 's nachts, bekend om zijn melancholische poëzie.",
+"Willem Kloos (°6 mei 1859 Amsterdam – †31 maart 1938 Den Haag) richtte in 1885 samen met Frederik van Eeden het invloedrijke tijdschrift De Nieuwe Gids op.",
+"Gerrit Achterberg (°20 mei 1905 Langbroek – †17 januari 1962 Leusden) werd in 1949 bekroond met de P.C. Hooftprijs. Zijn centrale thema was de 'dode geliefde'.",
+"Leo Vroman (°10 april 1915 Gouda – †22 februari 2014 Fort Worth) vluchtte in WOII naar Nederlands-Indië, overleefde een Japans kamp en werd 99 jaar oud.",
+"Hugo Claus (°5 april 1929 Brugge – †19 maart 2008 Antwerpen) was naast dichter ook toneelschrijver en filmmaker. Hij koos voor euthanasie wegens Alzheimer.",
+"J.H. Leopold (°11 mei 1865 Den Bosch – †21 juni 1925 Rotterdam) was classicus en hoogleraar Grieks aan de Universiteit Leiden, bekend om zijn hermetische poëzie.",
+"J. Slauerhoff (°15 september 1898 Leeuwarden – †5 oktober 1936 Hilversum) werkte als scheepsarts en bezocht alle werelddelen, stierf op 37-jarige leeftijd.",
+"Lucebert, pseudoniem van Lubertus Jacobus Swaanswijk (°15 september 1924 Amsterdam – †10 mei 1994 Alkmaar), was ook beeldend kunstenaar en 'keizer der Vijftigers'.",
+"Joost van den Vondel (°17 november 1587 Keulen – †5 februari 1679 Amsterdam) wordt beschouwd als de grootste Nederlandse dichter aller tijden, de 'Prins der Dichters'.",
+"P.C. Hooft (°16 maart 1581 Amsterdam – †21 mei 1647 Den Haag) was drost van Muiden en gastheer van de beroemde Muiderkring met o.a. Vondel en Huygens.",
+"Martinus Nijhoff (°20 april 1894 Den Haag – †26 januari 1953 Den Haag) was ook een vooraanstaand vertaler, o.a. van Shakespeare en T.S. Eliot.",
+"A. Roland Holst (°23 mei 1888 Amsterdam – †5 augustus 1976 Bergen) werd bijgenaamd 'de Prins der dichters' vanwege zijn mythisch-romantische poëzie.",
+"Ida Gerhardt (°11 mei 1905 Gorinchem – †15 augustus 1997 Warnsveld) vertaalde de Psalmen en ontving de P.C. Hooftprijs in 1979 voor haar gehele oeuvre.",
+"Remco Campert (°28 juli 1929 Den Haag – †4 juli 2022 Amsterdam) was een van de Vijftigers en ontving in 2015 de Prijs der Nederlandse Letteren.",
+"Hans Lodeizen (°20 juli 1924 Naarden – †26 juli 1950 Lausanne) stierf op 26-jarige leeftijd aan leukemie, enkele dagen na zijn verjaardag.",
+"Neeltje Maria Min (°12 september 1944 Pierik) debuteerde in 1966 met 'Voor wie ik liefheb wil ik heten', dat meer dan 70 drukken beleefde.",
+"Gerrit Kouwenaar (°9 augustus 1923 Amsterdam – †4 september 2014 Amsterdam) was een van de Vijftigers en ontving de P.C. Hooftprijs in 1989.",
+"Simon Vinkenoog (°18 juli 1928 Amsterdam – †12 juli 2009 Amsterdam) was voorman van de Vijftigers en later actief in de Provobeweging.",
+"Rutger Kopland, pseudoniem van psychiater Rudi van den Hoofdakker (°4 augustus 1934 Goor – †11 juli 2012 Glimmen), combineerde wetenschap met poëzie.",
+"Judith Herzberg (°4 november 1934 Amsterdam) is dochter van schrijver Abel Herzberg en schreef ook toneelstukken en filmscenario's.",
+"Anna Enquist, pseudoniem van Christa Widlund-Broer (°19 juli 1945 Amsterdam), is naast dichter ook concertpianiste en psychoanalytica.",
+"Herman de Coninck (°21 februari 1944 Mechelen – †22 mei 1997 Lissabon) stierf tijdens een poëziefestival in Portugal aan een hartaanval.",
+"Hadewych (ca. 1200 – ca. 1260) was een Brabantse mystica wier Strofische Gedichten tot de oudste Nederlandse literatuur behoren.",
+"J.A. Dèr Mouw (°24 juli 1863 Westzaan – †8 juli 1919 Voorburg) schreef onder het pseudoniem Adwaita, Sanskriet voor 'niet-twee'.",
+"Karel van de Woestijne (°10 maart 1878 Gent – †24 augustus 1929 Zwijnaarde) was een leidende figuur van het Vlaamse symbolisme.",
+"Frederik van Eeden (°3 april 1860 Haarlem – †16 juni 1932 Bussum) stichtte de commune Walden en schreef 'Van de koele meren des doods'.",
+"Hans Andreus, pseudoniem van J.W. van der Zant (°21 februari 1926 Amsterdam – †9 juni 1977 Parijs), behoorde tot de Vijftigers.",
+"C.O. Jellema (°9 september 1936 Groningen – †19 maart 2003 Groningen) was germanist en vooraanstaand vertaler uit het Duits.",
+"Ed. Hoornik (°21 maart 1910 Den Haag – †1 maart 1970 Amsterdam) schreef 'Pogrom' twee dagen na de Kristallnacht in 1938.",
+"Gerrit Komrij (°30 maart 1944 Winterswijk – †5 juli 2012 Amsterdam) was de eerste Dichter des Vaderlands (2000-2004).",
+"Jan Hanlo (°29 mei 1912 Bandung – †16 juni 1969 Valkenburg) werd beroemd door zijn experimentele gedicht 'Oote' uit 1952.",
+"Guillaume van der Graft, pseudoniem van Willem Barnard (°10 augustus 1920 Rotterdam – †21 november 2010 Utrecht), schreef ook kerkliederen.",
+"Cees Buddingh' (°7 augustus 1918 Dordrecht – †24 november 1985 Dordrecht) was ook bekend als vertaler, bloemlezer en aforist.",
+"Simon Vestdijk (°17 oktober 1898 Harlingen – †23 maart 1971 Utrecht) schreef 52 romans en wordt gerekend tot de meest productieve Nederlandse auteurs.",
+"P.C. Boutens (°20 februari 1870 Middelburg – †14 maart 1943 Den Haag) was classicus en vertaalde Homerus en Plato naar het Nederlands.",
+"Maurice Gilliams (°20 juli 1900 Antwerpen – †18 oktober 1982 Antwerpen) schreef het meesterwerk 'Elias, of het gevecht met de nachtegalen'.",
+"Drs. P, pseudoniem van Heinz Polzer (°14 juni 1919 Wenen – †7 oktober 2015 Leidschendam), was cabaretier en tekstschrijver.",
+"Piet Paaltjens, pseudoniem van predikant François HaverSchmidt (°12 februari 1835 Leeuwarden – †19 januari 1894 Schiedam).",
+"Ellen Warmond (°16 december 1930 Rotterdam – †15 februari 2011 Amsterdam) was een van de weinige vrouwelijke Vijftigers.",
+"Christine D'haen (°24 februari 1923 Gent – †1 september 2009 Gent) was een van de belangrijkste Vlaamse dichteressen van de 20e eeuw.",
+"Annie M.G. Schmidt (°20 mei 1911 Kapelle – †21 mei 1995 Amsterdam) won de Hans Christian Andersenprijs voor kinderboeken in 1988.",
+"Armando, pseudoniem van Herman Dirk van Dodeweerd (°18 september 1929 Amsterdam – †1 juli 2018 Potsdam), was ook beeldend kunstenaar.",
+"Leonard Nolens (°11 april 1947 Bree) is Vlaams Dichter des Vaderlands en ontving de Prijs der Nederlandse Letteren in 2018.",
+"Miriam Van hee (°16 november 1952 Gent) is dichter, slavist aan de Universiteit Gent en vertaler uit het Russisch.",
+"Jan Greshoff (°15 december 1888 Nieuw-Helvoet – †19 maart 1971 Kaapstad) was criticus, bloemlezer en emigreerde naar Zuid-Afrika.",
+"Eva Gerlach, pseudoniem van Evelien Lexmond (°6 maart 1948 Amsterdam), ontving de P.C. Hooftprijs in 2000 voor haar poëzie.",
+"Pierre Kemp (°1 december 1886 Maastricht – †24 juli 1967 Maastricht) werkte als bureauchef bij de Staatsmijnen en dichtte in zijn vrije tijd.",
+"Hagar Peeters (°3 juni 1972 Antwerpen) was Dichter des Vaderlands van 2022 tot 2025 en schreef ook romans en essays.",
+"Esther Naomi Perquin (°15 september 1980 Utrecht) was Dichter des Vaderlands van 2021 tot 2022.",
+"W.F. Hermans (°1 september 1921 Amsterdam – †27 april 1995 Utrecht) was vooral bekend als romanschrijver maar schreef ook poëzie.",
+"Jacqueline van der Waals (°26 juli 1868 Den Haag – †29 april 1922 Amsterdam) was dochter van Nobelprijswinnaar J.D. van der Waals.",
+"Anna Bijns (°1493 Antwerpen – †1575 Antwerpen) was een van de eerste vrouwelijke auteurs in de Nederlanden die naam maakte met haar refreinen.",
+"Geerten Gossaert, pseudoniem van historicus F.C. Gerretson (°9 maart 1884 Kralingen – †27 oktober 1958 Utrecht).",
+"Albrecht Rodenbach (°27 oktober 1856 Roeselare – †23 juni 1880 Roeselare) stierf op 23-jarige leeftijd maar werd een icoon van de Vlaamse Beweging.",
+"H.H. ter Balkt (°17 september 1938 Usselo – †9 maart 2015 Nijmegen) ontving de P.C. Hooftprijs in 2003 voor zijn gehele oeuvre.",
+"J. Bernlef, pseudoniem van Hendrik Jan Marsman (°14 januari 1937 Sint-Pancras – †29 oktober 2012 Amsterdam), schreef ook romans.",
+"Mark Boog (°24 september 1970 Utrecht) debuteerde in 2000 met 'Alsof er iets gebeurt' en ontving meerdere poëzieprijzen.",
+"K. Schippers, pseudoniem van Gerard Stigter (°17 oktober 1936 Amsterdam), is dichter, essayist en verzamelaar van curiosa."
+];
+
+const MN=["JANUARI","FEBRUARI","MAART","APRIL","MEI","JUNI","JULI","AUGUSTUS","SEPTEMBER","OKTOBER","NOVEMBER","DECEMBER"];
+const DN=["ZONDAG","MAANDAG","DINSDAG","WOENSDAG","DONDERDAG","VRIJDAG","ZATERDAG"];
+const WS=["Als de haan kraait op de mesthoop, verandert het weer of het blijft zo.","Rood in de morgen, water uit de borgen.","Avondrood, mooi weer in de sloot.","Koud april en natte mei, voorspelt veel hooi en wei.","Maart roert zijn staart.","April doet wat hij wil.","Na regen komt zonneschijn.","Sint-Juttemis brengt vorst en ijs.","Morgenstond heeft goud in de mond.","Als het regent met Pinksteren, regent het zeven zondagen.","Een koude mei, boter in de wei.","Droog sint Jan, nat tot Kerst.","Als de eik bloeit voor de es, krijg je regen met exces.","Donder in januari, veel sneeuw in februari.","Een groene kerst, een witte pasen.","De wind van Goede Vrijdag blijft het hele jaar.","Maria Hemelvaart zonneschijn, brengt goede wijn.","Sint Maarten met koude staart, vriest sint Nicolaas zijn baard.","Staat met Kerstmis de koe in het gras, dan staat zij met Pasen in het stro.","Veel sneeuw op sint Valentijn, doet de lente vrolijk zijn."];
+const CT=[{t:"Poëzie is de taal van een gemoedstoestand.",a:"Fernando Pessoa"},{t:"Een gedicht is nooit af, het wordt alleen maar verlaten.",a:"Paul Valéry"},{t:"Poëzie is de kortste weg van mens tot mens.",a:"Hans Andreus"},{t:"De poëzie is de moeder van alle kunsten.",a:"Thomas Carlyle"},{t:"Dichten is de kunst van het weglaten.",a:"A. Roland Holst"},{t:"Poëzie is wat verloren gaat in vertaling.",a:"Robert Frost"},{t:"Alle slechte poëzie komt voort uit oprecht gevoel.",a:"Oscar Wilde"},{t:"De dichter is een leugenaar die altijd de waarheid spreekt.",a:"Jean Cocteau"},{t:"Poëzie geneest de wonden die het verstand slaat.",a:"Novalis"},{t:"Een gedicht begint als een krop in de keel.",a:"Robert Frost"},{t:"Poëzie is de muziek van de ziel.",a:"Voltaire"},{t:"De dichter is de ziener van het onzichtbare.",a:"Victor Hugo"},{t:"Een gedicht is een spiegel die wandelt langs een weg.",a:"Stendhal"},{t:"Geen tranen in de schrijver, geen tranen in de lezer.",a:"Robert Frost"},{t:"De dichter maakt het onzichtbare zichtbaar.",a:"Nathalie Sarraute"}];
+
+let dt=new Date(),torn=[],flipped=false,tearing=false;
+const doy=d=>Math.floor((d-new Date(d.getFullYear(),0,0))/864e5);
+const wk=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=t.getUTCDay()||7;t.setUTCDate(t.getUTCDate()+4-n);return Math.ceil((((t-new Date(Date.UTC(t.getUTCFullYear(),0,1)))/864e5)+1)/7);};
+
+function ui(){
+  const i=(doy(dt)-1)%P.length,p=P[i];
+  document.getElementById('monthName').textContent=MN[dt.getMonth()];
+  document.getElementById('weekNr').textContent=wk(dt)+'e week';
+  document.getElementById('dayOfYear').textContent=doy(dt);
+  document.getElementById('dayNumber').textContent=dt.getDate();
+  document.getElementById('poemTitle').textContent=p.g;
+  document.getElementById('dayName').textContent=DN[dt.getDay()];
+  document.getElementById('poetName').textContent=p.d;
+  document.getElementById('poetDetails').textContent=p.g+' ('+p.j+')';
+  document.getElementById('weetje').textContent=W[i%W.length];
+  document.getElementById('poemQuote').textContent='"'+p.r+'"';
+  document.getElementById('poemAuthor').textContent=p.d;
+  const c=CT[i%CT.length];
+  document.getElementById('citaatText').textContent='"'+c.t+'"';
+  document.getElementById('citaatSource').textContent='— '+c.a;
+  document.getElementById('weerspreuk').textContent=WS[i%WS.length];
+  document.getElementById('btnBack').disabled=!torn.length;
+  document.getElementById('badge').style.display=torn.length?'flex':'none';
+  document.getElementById('badge').textContent=torn.length;
+}
+function flip(){if(!tearing){flipped=!flipped;document.getElementById('pageWrapper').classList.toggle('flipped',flipped);}}
+function tear(){if(tearing)return;tearing=true;const w=document.getElementById('pageWrapper');w.classList.add('tearing');document.getElementById('btnTear').disabled=true;setTimeout(()=>{torn.push(dt.toISOString());dt=new Date(dt);dt.setDate(dt.getDate()+1);flipped=false;w.classList.remove('flipped','tearing');document.getElementById('btnTear').disabled=false;tearing=false;save();ui();},400);}
+function untear(){if(!torn.length||tearing)return;dt=new Date(torn.pop());flipped=false;document.getElementById('pageWrapper').classList.remove('flipped');save();ui();}
+function reset(){dt=new Date();torn=[];flipped=false;document.getElementById('pageWrapper').classList.remove('flipped');save();ui();}
+function save(){localStorage.setItem('pruimelaar',JSON.stringify({torn,dt:dt.toISOString()}));}
+function load(){try{const s=JSON.parse(localStorage.getItem('pruimelaar'));if(s){torn=s.torn||[];if(s.dt)dt=new Date(s.dt);}}catch(e){}}
+load();ui();
+</script>
+</body>
+</html>
